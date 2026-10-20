@@ -1,0 +1,7 @@
+order date;region;product.name;units;revenue
+2025-01-03;North;Widget;4;39.96
+2025-01-17;South;Gadget;1;24.50
+2025-02-02;North;Gadget;2;49.00
+2025-02-20;East;Widget;7;69.93
+2025-03-05;South;Widget;3;29.97
+2025-03-28;East;Gadget;5;122.50
