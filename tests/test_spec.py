@@ -1,5 +1,5 @@
 import pytest
-
+from render.spec import SpecError, check_fields, check_schema, parse_spec, sanitize, summarize
 from render.spec import SpecError, check_fields, parse_spec, sanitize, summarize
 
 COLUMNS = {"order date", "region", "revenue"}
@@ -40,3 +40,11 @@ def test_summary_shows_aggregation() -> None:
         "x": {"field": "order date", "timeUnit": "yearmonth", "type": "temporal"},
         "y": {"field": "revenue", "aggregate": "sum", "type": "quantitative"}}}
     assert summarize(spec) == "line chart: x = yearmonth(order date), y = sum(revenue)"
+
+def test_schema_accepts_valid_spec() -> None:
+    check_schema({"mark": "bar", "encoding": {"x": {"field": "region", "type": "nominal"}}})
+
+
+def test_schema_rejects_unknown_mark() -> None:
+    with pytest.raises(SpecError, match="mark"):
+        check_schema({"mark": "barr"})

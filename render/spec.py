@@ -8,7 +8,7 @@ from __future__ import annotations
 import json
 import re
 from functools import lru_cache
-from importlib import resources
+from pathlib import Path
 from typing import Any
 
 Spec = dict[str, Any]
@@ -81,17 +81,25 @@ def check_fields(spec: Spec, columns: set[str]) -> None:
 
 @lru_cache(maxsize=1)
 def _validator() -> Any:
-    # altair (a Streamlit dependency) bundles the Vega-Lite JSON schema.
+    """Load the Vega-Lite JSON schema bundled with altair (any version)."""
+    import altair
     import jsonschema
 
-    schema_file = resources.files("altair.vegalite.v5.schema") / "vega-lite-schema.json"
-    return jsonschema.Draft7Validator(json.loads(schema_file.read_text()))
+    altair_dir = Path(altair.__file__).parent
+    candidates = sorted(altair_dir.glob("vegalite/v*/schema/vega-lite-schema.json"))
+    if not candidates:
+        raise RuntimeError(f"Vega-Lite schema not found inside {altair_dir}")
+    schema = json.loads(candidates[-1].read_text(encoding="utf-8"))
+    return jsonschema.Draft7Validator(schema)
 
 
 def check_schema(spec: Spec) -> None:
     import jsonschema
 
-    error = jsonschema.exceptions.best_match(_validator().iter_errors(spec))
+    # Vega-Lite requires a top-level "data" entry. Ours is injected by
+    # Streamlit at render time, so a placeholder is added for validation only.
+    candidate = {"data": {"name": "table"}, **spec}
+    error = jsonschema.exceptions.best_match(_validator().iter_errors(candidate))
     if error is not None:
         path = "/".join(str(p) for p in error.absolute_path) or "(root)"
         raise SpecError(f"Invalid Vega-Lite at {path}: {error.message[:300]}")
