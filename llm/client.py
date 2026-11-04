@@ -35,6 +35,11 @@ class LLMResult:
     latency_s: float
     total_tokens: int | None
 
+@dataclass(frozen=True)
+class Feedback:
+    """A rejected answer and the reason, sent back so the model can fix it."""
+    previous_answer: str
+    error: str
 
 @lru_cache(maxsize=1)
 def _client() -> OpenAI:
@@ -47,17 +52,29 @@ def _client() -> OpenAI:
 
 
 def build_user_message(
-    schema: DatasetSchema, question: str, current_spec: dict[str, Any] | None
+    schema: DatasetSchema,
+    question: str,
+    current_spec: dict[str, Any] | None,
+    feedback: Feedback | None = None,
 ) -> str:
     parts = [f"Dataset schema:\n{json.dumps(schema.to_prompt_dict(), indent=2)}"]
     if current_spec is not None:
         parts.append(f"Current chart spec:\n{json.dumps(current_spec, indent=2)}")
     parts.append(f"Request: {question}")
+    if feedback is not None:
+        parts.append(
+            f"Your previous answer was:\n{feedback.previous_answer}\n"
+            f"It was rejected with this error:\n{feedback.error}\n"
+            "Return a corrected spec."
+        )
     return "\n\n".join(parts)
 
 
 def generate_spec(
-    schema: DatasetSchema, question: str, current_spec: dict[str, Any] | None = None
+    schema: DatasetSchema,
+    question: str,
+    current_spec: dict[str, Any] | None = None,
+    feedback: Feedback | None = None,
 ) -> LLMResult:
     """Ask the model for a Vega-Lite spec. Raises openai errors on network failure."""
     start = time.perf_counter()
@@ -65,7 +82,7 @@ def generate_spec(
         model=MODEL,
         messages=[
             {"role": "system", "content": SYSTEM_PROMPT},
-            {"role": "user", "content": build_user_message(schema, question, current_spec)},
+            {"role": "user", "content": build_user_message(schema, question, current_spec, feedback)},
         ],
         temperature=TEMPERATURE,
     )
