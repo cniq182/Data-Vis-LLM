@@ -1,6 +1,7 @@
 """Try the self-healing pipeline with the real model."""
 from pathlib import Path
 
+from llm.interaction_log import log_result
 from data.loader import extract_schema, load_csv
 from llm.pipeline import ask
 from render.spec import summarize
@@ -17,6 +18,7 @@ requests = [
 current_spec = None
 for request in requests:
     result = ask(schema, request, current_spec)
+    log_result(request, result, session_id="try_llm", had_current_spec=current_spec is not None)
     print(f"\n>>> {request}")
     print(f"attempts: {len(result.attempts)} | total latency: {result.total_latency_s:.2f} s")
     for i, attempt in enumerate(result.attempts, start=1):
