@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>autochart — CSV to Vega-Lite</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+
+<!-- ── HEADER ── -->
+<div id="header">
+  <div class="logo"><span class="logo-dot"></span>autochart</div>
+  <nav id="nav">
+    <button class="nb on" onclick="goTab('upload',this)">⬆ Load Data</button>
+    <button class="nb"    onclick="goTab('chart',this)">📊 Chart</button>
+  </nav>
+  <div class="data-badge" id="data-badge">No data loaded</div>
+</div>
+
+<div id="app">
+
+  <!-- ══ UPLOAD ══ -->
+  <div class="tab on" id="tab-upload">
+    <div class="ph">
+      <h1><span class="icon">⬆</span> Load Your Data</h1>
+      <p>Upload a CSV file. Everything is processed locally in your browser — no data is sent anywhere.</p>
+    </div>
+
+    <div class="upload-box" id="upload-box">
+      <input type="file" id="csv-file" accept=".csv" />
+      <label for="csv-file">
+        <div class="ub-icon">📂</div>
+        <div class="ub-title">Drop a CSV here or click to browse</div>
+        <div class="ub-sub">Comma, semicolon, or tab-delimited files supported</div>
+        <div class="ub-ok" id="upload-ok"></div>
+      </label>
+    </div>
+
+    <div class="ib warn" id="upload-error" style="display:none"></div>
+
+    <div class="card" id="schema-card" style="display:none">
+      <div class="card-title">Dataset schema</div>
+      <div id="schema-content"></div>
+    </div>
+  </div>
+
+  <!-- ══ CHART ══ -->
+  <div class="tab" id="tab-chart">
+    <div class="ph">
+      <h1><span class="icon">📊</span> Chart</h1>
+      <p>Write or paste a Vega-Lite spec below. Hit <strong>Render chart</strong> to visualise your data.</p>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Vega-Lite spec</div>
+      <textarea id="spec-editor" spellcheck="false">{
+  "mark": "bar",
+  "encoding": {
+    "x": {"field": "region", "type": "nominal"},
+    "y": {"field": "revenue", "aggregate": "sum", "type": "quantitative"}
+  }
+}</textarea>
+      <div class="spec-footer">
+        <button class="btn" id="render-btn" disabled>Render chart</button>
+        <span id="chart-summary"></span>
+      </div>
+      <div class="ib warn" id="chart-error" style="display:none;margin-top:.75rem"></div>
+    </div>
+
+    <div class="card" id="chart-card" style="display:none">
+      <div class="card-title">Output</div>
+      <div id="chart-container"></div>
+    </div>
+  </div>
+
+</div><!-- /app -->
+
+<!-- ── SCRIPTS ── -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/vega@5"></script>
+<script src="https://cdn.jsdelivr.net/npm/vega-lite@5"></script>
+<script src="https://cdn.jsdelivr.net/npm/vega-embed@6"></script>
+<script src="js/data.js"></script>
+<script src="js/charts.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
