@@ -46,10 +46,17 @@ def ask(
     question: str,
     current_spec: dict[str, Any] | None = None,
     *,
+    previous_clarification: str | None = None,
     generate: Generator = generate_spec,
     max_attempts: int = MAX_ATTEMPTS,
 ) -> ChartResult:
     """Generate a valid spec, feeding validation errors back to the model."""
+    if previous_clarification:
+        # The model has no memory: restate the clarification it gave last turn.
+        question = (
+            f'You previously asked the user: "{previous_clarification}"\n'
+            f'The user replied: "{question}"'
+        )
     attempts: list[Attempt] = []
     feedback: Feedback | None = None
 

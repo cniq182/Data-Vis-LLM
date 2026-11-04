@@ -56,3 +56,14 @@ def test_clarification_is_returned_without_retry() -> None:
     assert not result.ok
     assert result.clarification == "There is no profit column."
     assert len(calls) == 1          # not treated as an error, so no retry
+
+def test_previous_clarification_is_sent_with_the_reply() -> None:
+    seen: list[str] = []
+
+    def generate(schema, question, current_spec, feedback):
+        seen.append(question)
+        return LLMResult(text=GOOD, model="fake", latency_s=0.0, total_tokens=0)
+
+    ask(SCHEMA, "yes", generate=generate, previous_clarification="Bar chart per port instead?")
+    assert "Bar chart per port instead?" in seen[0]
+    assert "yes" in seen[0]
