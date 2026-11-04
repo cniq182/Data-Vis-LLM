@@ -1,21 +1,30 @@
-"""Try generate_spec with a question and then a refinement (multi-turn)."""
+"""Try the self-healing pipeline with the real model."""
 from pathlib import Path
 
 from data.loader import extract_schema, load_csv
-from llm.client import generate_spec
-from render.spec import SpecError, parse_spec, summarize, validate
+from llm.pipeline import ask
+from render.spec import summarize
 
 df = load_csv(Path("sample_data/sales.csv").read_bytes())
 schema = extract_schema(df)
 
+requests = [
+    "What is the total revenue per region?",
+    "Show it as a line over months instead.",
+    "Show the total profit per product.",        # trap: there is no 'profit' column
+]
+
 current_spec = None
-for request in ["What is the total revenue per region?", "Show it as a line over months instead."]:
-    result = generate_spec(schema, request, current_spec)
-    print(f"\n>>> {request}  ({result.latency_s:.2f} s, {result.total_tokens} tokens)")
-    try:
-        current_spec = validate(parse_spec(result.text), schema.column_names)
-        print("VALID:", summarize(current_spec))
-    except SpecError as exc:
-        print("INVALID:", exc)
-        print(result.text)
-        break
+for request in requests:
+    result = ask(schema, request, current_spec)
+    print(f"\n>>> {request}")
+    print(f"attempts: {len(result.attempts)} | total latency: {result.total_latency_s:.2f} s")
+    for i, attempt in enumerate(result.attempts, start=1):
+        print(f"  #{i}: {'OK' if attempt.error is None else 'ERROR: ' + attempt.error}")
+    if result.ok:
+        current_spec = result.spec
+        print("RESULT:", summarize(result.spec))
+    elif result.clarification:
+        print("CLARIFICATION:", result.clarification)
+    else:
+        print("FAILED:", result.error)

@@ -30,7 +30,8 @@ class Attempt:
 class ChartResult:
     spec: dict[str, Any] | None
     attempts: list[Attempt]
-    error: str | None = None   # user-facing message when no valid spec
+    error: str | None = None           # user-facing message when no valid spec
+    clarification: str | None = None   # model says the data cannot answer the request
 
     @property
     def ok(self) -> bool:
@@ -39,7 +40,6 @@ class ChartResult:
     @property
     def total_latency_s(self) -> float:
         return sum(a.latency_s for a in self.attempts)
-
 
 def ask(
     schema: DatasetSchema,
@@ -64,7 +64,11 @@ def ask(
             )
 
         try:
-            spec = validate(parse_spec(result.text), schema.column_names)
+            parsed = parse_spec(result.text)
+            if isinstance(parsed.get("clarification"), str):
+                attempts.append(Attempt(result.text, None, result.latency_s, result.total_tokens))
+                return ChartResult(None, attempts, clarification=parsed["clarification"])
+            spec = validate(parsed, schema.column_names)
         except SpecError as exc:
             attempts.append(Attempt(result.text, str(exc), result.latency_s, result.total_tokens))
             feedback = Feedback(previous_answer=result.text, error=str(exc))

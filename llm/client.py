@@ -25,8 +25,10 @@ Rules:
 - Use only column names that appear in the schema, spelled exactly.
 - Use Vega-Lite aggregate, timeUnit, bin and filter to transform data.
 - If a current chart spec is given, modify it to satisfy the request
-  instead of starting from scratch, and keep everything else unchanged."""
-
+  instead of starting from scratch, and keep everything else unchanged.
+- If the request needs data that is not in the schema, do NOT substitute
+  another column. Answer instead with {"clarification": "<one short sentence
+  for the user explaining what is missing and which columns could help>"}."""
 
 @dataclass(frozen=True)
 class LLMResult:

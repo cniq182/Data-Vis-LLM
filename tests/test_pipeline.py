@@ -49,3 +49,10 @@ def test_gives_up_after_max_attempts() -> None:
     assert not result.ok
     assert len(result.attempts) == 3
     assert result.error is not None
+
+def test_clarification_is_returned_without_retry() -> None:
+    generate, calls = scripted('{"clarification": "There is no profit column."}')
+    result = ask(SCHEMA, "q", generate=generate)
+    assert not result.ok
+    assert result.clarification == "There is no profit column."
+    assert len(calls) == 1          # not treated as an error, so no retry
