@@ -23,7 +23,7 @@ if st.session_state.get("file_id") != uploaded.file_id:
     except DataLoadError as exc:
         st.error(str(exc))
         st.stop()
-        st.session_state.update(
+    st.session_state.update(
         file_id=uploaded.file_id,
         df=df,
         schema=extract_schema(df),
