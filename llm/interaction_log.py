@@ -7,7 +7,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from llm.client import MODEL, TEMPERATURE
+from llm.client import MODEL, PROMPT_VERSION, TEMPERATURE
 from llm.pipeline import ChartResult
 
 LOG_DIR = Path("logs")
@@ -33,6 +33,7 @@ def log_result(
         "timestamp": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "session_id": session_id,
         "model": MODEL,
+        "prompt_version": PROMPT_VERSION,
         "temperature": TEMPERATURE,
         "question": question,
         "had_current_spec": had_current_spec,     # True = refinement turn
