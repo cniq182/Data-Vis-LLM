@@ -139,18 +139,54 @@ def _validator() -> Any:
     return jsonschema.Draft7Validator(schema)
 
 
+def _leaf_errors(error: Any) -> Any:
+    """Walk down the tree of sub-errors (one per schema alternative) to the leaves."""
+    if not error.context:
+        yield error
+    else:
+        for sub in error.context:
+            yield from _leaf_errors(sub)
+
+
+def _short_message(error: Any) -> str:
+    """The error message without echoing large objects back."""
+    message = error.message
+    if isinstance(error.instance, (dict, list)):
+        message = message.replace(repr(error.instance), "this object", 1)
+    return message[:200]
+
+
 def check_schema(spec: Spec) -> None:
-    import jsonschema
+    import jsonschema  # noqa: F401  (loaded by _validator)
 
     # Vega-Lite requires a top-level "data" entry. Ours is injected by
     # Streamlit at render time, so a placeholder is added for validation only.
     candidate = {"data": {"name": "table"}, **spec}
-    error = jsonschema.exceptions.best_match(_validator().iter_errors(candidate))
-    if error is not None:
-        path = "/".join(str(p) for p in error.absolute_path) or "(root)"
-        raise SpecError(f"Invalid Vega-Lite at {path}: {error.message[:300]}")
+    errors = list(_validator().iter_errors(candidate))
+    if not errors:
+        return
 
+    # The most specific causes are the deepest leaf errors.
+    leaves = [leaf for error in errors for leaf in _leaf_errors(error)]
+    max_depth = max(len(leaf.absolute_path) for leaf in leaves)
+    deepest = [leaf for leaf in leaves if len(leaf.absolute_path) == max_depth]
+    path = "/".join(str(p) for p in deepest[0].absolute_path) or "(root)"
 
+    # Invalid value: list the allowed ones so the model can pick a valid one.
+    options: set[str] = set()
+    for leaf in deepest:
+        if leaf.validator == "enum":
+            options.update(str(o) for o in leaf.validator_value)
+        elif leaf.validator == "const":
+            options.add(str(leaf.validator_value))
+    if options:
+        raise SpecError(
+            f"Invalid value {deepest[0].instance!r} at {path}. "
+            f"Valid values: {', '.join(sorted(options))}."
+        )
+
+    messages = sorted({_short_message(leaf) for leaf in deepest})
+    raise SpecError(f"Invalid Vega-Lite at {path}: " + " | ".join(messages[:3]))
 def validate(spec: Spec, columns: set[str]) -> Spec:
     """Full pipeline: sanitize, check fields, check schema. Returns clean spec."""
     clean = sanitize(spec)

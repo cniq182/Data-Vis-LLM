@@ -66,3 +66,17 @@ def test_singular_time_units_are_fixed() -> None:
 def test_singular_hour_passes_validation() -> None:
     spec = {"mark": "bar", "encoding": {"x": {"field": "pickup", "timeUnit": "hour", "type": "ordinal"}}}
     validate(spec, {"pickup"})   # failed in the pre-pilot (T3); must not raise now
+
+def test_schema_error_lists_valid_values() -> None:
+    with pytest.raises(SpecError, match="Valid values") as exc_info:
+        check_schema({"mark": "barr"})
+    assert "bar" in str(exc_info.value)
+
+
+def test_schema_error_points_to_the_cause_without_echoing_spec() -> None:
+    with pytest.raises(SpecError) as exc_info:
+        check_schema({"mark": "bar", "config": {"view": {"width": 400}}})
+    message = str(exc_info.value)
+    assert "config/view" in message
+    assert "width" in message
+    assert len(message) < 500        # no longer echoes the whole spec
