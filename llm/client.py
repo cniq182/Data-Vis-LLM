@@ -17,7 +17,9 @@ MODEL = "cai"
 TEMPERATURE = 0.0
 TIMEOUT_S = 60.0
 SECRETS_PATH = Path(".streamlit/secrets.toml")
-
+# Change this label every time SYSTEM_PROMPT changes, so logs show which version produced each result.
+# v1: original rules. v2: model may answer with {"clarification": ...} instead of substituting columns.
+PROMPT_VERSION = "v2"
 SYSTEM_PROMPT = """You turn questions about a tabular dataset into Vega-Lite v5 specs.
 Rules:
 - Answer with ONE JSON object and nothing else: no explanations, no markdown.

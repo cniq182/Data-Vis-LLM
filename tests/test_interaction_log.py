@@ -2,7 +2,7 @@ import json
 
 from llm.interaction_log import log_result
 from llm.pipeline import Attempt, ChartResult
-
+from llm.client import PROMPT_VERSION
 
 def test_log_appends_one_line_per_request(tmp_path) -> None:
     result = ChartResult(
@@ -24,3 +24,4 @@ def test_log_appends_one_line_per_request(tmp_path) -> None:
     assert record["n_attempts"] == 2
     assert record["total_latency_s"] == 3.5
     assert record["total_tokens"] == 220
+    assert record["prompt_version"] == PROMPT_VERSION
