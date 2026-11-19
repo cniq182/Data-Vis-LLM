@@ -1,6 +1,7 @@
 import pytest
-from render.spec import SpecError, check_fields, check_schema, parse_spec, sanitize, summarize
+from render.spec import SpecError, check_fields, check_schema, parse_spec, sanitize, summarize, validate
 from render.spec import SpecError, check_fields, parse_spec, sanitize, summarize
+
 
 COLUMNS = {"order date", "region", "revenue"}
 
@@ -48,3 +49,20 @@ def test_schema_accepts_valid_spec() -> None:
 def test_schema_rejects_unknown_mark() -> None:
     with pytest.raises(SpecError, match="mark"):
         check_schema({"mark": "barr"})
+
+def test_view_size_in_config_is_moved_and_valid() -> None:
+    spec = validate({"mark": "bar", "config": {"view": {"width": 400, "height": 300}}}, set())
+    assert spec == {"mark": "bar", "width": 400, "height": 300}
+
+def test_singular_time_units_are_fixed() -> None:
+    spec = {"mark": "bar", "encoding": {
+        "x": {"field": "pickup", "timeUnit": "hour", "type": "ordinal"},
+        "y": {"field": "pickup", "timeUnit": {"unit": "yearmonthdatehour"}, "type": "temporal"}}}
+    clean = sanitize(spec)
+    assert clean["encoding"]["x"]["timeUnit"] == "hours"
+    assert clean["encoding"]["y"]["timeUnit"]["unit"] == "yearmonthdatehours"
+
+
+def test_singular_hour_passes_validation() -> None:
+    spec = {"mark": "bar", "encoding": {"x": {"field": "pickup", "timeUnit": "hour", "type": "ordinal"}}}
+    validate(spec, {"pickup"})   # failed in the pre-pilot (T3); must not raise now

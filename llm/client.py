@@ -19,13 +19,15 @@ TIMEOUT_S = 60.0
 SECRETS_PATH = Path(".streamlit/secrets.toml")
 # Change this label every time SYSTEM_PROMPT changes, so logs show which version produced each result.
 # v1: original rules. v2: model may answer with {"clarification": ...} instead of substituting columns.
-PROMPT_VERSION = "v2"
+PROMPT_VERSION = "v3"
 SYSTEM_PROMPT = """You turn questions about a tabular dataset into Vega-Lite v5 specs.
 Rules:
 - Answer with ONE JSON object and nothing else: no explanations, no markdown.
 - Never include a "data" key. The data is attached later by the application.
 - Use only column names that appear in the schema, spelled exactly.
 - Use Vega-Lite aggregate, timeUnit, bin and filter to transform data.
+- Time units for hours, minutes and seconds are plural: "hours", "minutes",
+  "seconds", "yearmonthdatehours".
 - If a current chart spec is given, modify it to satisfy the request
   instead of starting from scratch, and keep everything else unchanged.
 - If the request needs data that is not in the schema, do NOT substitute

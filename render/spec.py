@@ -21,6 +21,13 @@ _DERIVED_KEYS = ("as",)
 # Keys stripped anywhere in the spec: data always comes from our DataFrame.
 _FORBIDDEN_KEYS = ("data", "datasets")
 
+# The LLM often writes singular time units ("hour"); Vega-Lite needs the plural ("hours").
+_TIME_UNIT_FIXES = (
+    (re.compile(r"hour(?!s)"), "hours"),
+    (re.compile(r"minute(?!s)"), "minutes"),
+    (re.compile(r"second(?!s)"), "seconds"),
+)
+
 
 class SpecError(Exception):
     """A spec that cannot be rendered. The message is meant for the LLM."""
@@ -38,14 +45,53 @@ def parse_spec(text: str) -> Spec:
     return spec
 
 
-def sanitize(spec: Spec) -> Spec:
+def _strip_data(node: Any) -> Any:
     """Remove any data source the LLM may have added (URLs, inline values)."""
-    if isinstance(spec, dict):
-        return {k: sanitize(v) for k, v in spec.items() if k not in _FORBIDDEN_KEYS}
-    if isinstance(spec, list):
-        return [sanitize(v) for v in spec]
-    return spec
+    if isinstance(node, dict):
+        return {k: _strip_data(v) for k, v in node.items() if k not in _FORBIDDEN_KEYS}
+    if isinstance(node, list):
+        return [_strip_data(v) for v in node]
+    return node
 
+def _fix_time_unit(value: str) -> str:
+    for pattern, plural in _TIME_UNIT_FIXES:
+        value = pattern.sub(plural, value)
+    return value
+
+
+def _fix_time_units(node: Any) -> Any:
+    """Recursively replace singular time units anywhere in the spec."""
+    if isinstance(node, dict):
+        fixed: dict[str, Any] = {}
+        for key, value in node.items():
+            if key == "timeUnit" and isinstance(value, str):
+                fixed[key] = _fix_time_unit(value)
+            elif key == "timeUnit" and isinstance(value, dict) and isinstance(value.get("unit"), str):
+                fixed[key] = {**value, "unit": _fix_time_unit(value["unit"])}
+            else:
+                fixed[key] = _fix_time_units(value)
+        return fixed
+    if isinstance(node, list):
+        return [_fix_time_units(v) for v in node]
+    return node
+
+def sanitize(spec: Spec) -> Spec:
+    """Remove data sources and fix known LLM habits that break validation."""
+    clean = _fix_time_units(_strip_data(spec))
+
+    # config.view.width/height is invalid in our Vega-Lite schema: move it to the top level.
+    config = clean.get("config")
+    view = config.get("view") if isinstance(config, dict) else None
+    if isinstance(view, dict):
+        for key in ("width", "height"):
+            if key in view:
+                clean.setdefault(key, view.pop(key))
+        if not view:
+            del config["view"]
+        if not config:
+            del clean["config"]
+
+    return clean
 
 def _collect(node: Any, used: set[str], derived: set[str]) -> None:
     if isinstance(node, dict):
