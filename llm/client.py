@@ -15,7 +15,7 @@ from data.loader import DatasetSchema
 
 MODEL = "cai"
 TEMPERATURE = 0.0
-TIMEOUT_S = 30.0
+TIMEOUT_S = 60.0
 SECRETS_PATH = Path(".streamlit/secrets.toml")
 
 SYSTEM_PROMPT = """You turn questions about a tabular dataset into Vega-Lite v5 specs.
