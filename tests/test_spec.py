@@ -125,3 +125,10 @@ def test_title_inside_encoding_is_moved() -> None:
     clean = validate(spec, TAXI_COLUMNS)
     assert clean["title"] == "Total Tips"
     assert "title" not in clean["encoding"]
+
+def test_unknown_top_level_property_gets_a_clear_message() -> None:
+    with pytest.raises(SpecError) as exc_info:
+        check_schema({"mark": "bar", "foo": 1})
+    message = str(exc_info.value)
+    assert "foo" in message
+    assert "concat" not in message       # no more misleading alternatives

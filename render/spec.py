@@ -185,6 +185,19 @@ def _validator() -> Any:
     return jsonschema.Draft7Validator(schema)
 
 
+@lru_cache(maxsize=1)
+def _unit_validator() -> Any:
+    """Validator for single-view specs only (the alternative that has a top-level "mark")."""
+    import jsonschema
+
+    definitions = _validator().schema.get("definitions", {})
+    if "TopLevelUnitSpec" not in definitions:
+        return None
+    return jsonschema.Draft7Validator(
+        {"$ref": "#/definitions/TopLevelUnitSpec", "definitions": definitions}
+    )
+
+
 def _leaf_errors(error: Any) -> Any:
     """Walk down the tree of sub-errors (one per schema alternative) to the leaves."""
     if not error.context:
@@ -203,8 +216,6 @@ def _short_message(error: Any) -> str:
 
 
 def check_schema(spec: Spec) -> None:
-    import jsonschema  # noqa: F401  (loaded by _validator)
-
     # Vega-Lite requires a top-level "data" entry. Ours is injected by
     # Streamlit at render time, so a placeholder is added for validation only.
     candidate = {"data": {"name": "table"}, **spec}
@@ -212,12 +223,20 @@ def check_schema(spec: Spec) -> None:
     if not errors:
         return
 
-    # The most specific causes are the deepest leaf errors.
-    leaves = [leaf for error in errors for leaf in _leaf_errors(error)]
+    # Full, untruncated explanation for the log: every cause the validator found.
     full_detail = "\n".join(
         f"{'/'.join(str(p) for p in leaf.absolute_path) or '(root)'}: {leaf.message}"
-        for leaf in leaves
+        for error in errors
+        for leaf in _leaf_errors(error)
     )
+
+    # A spec with a top-level "mark" is a single-view chart: explaining the error with that
+    # schema alone avoids misleading messages from the other alternatives (concat, facet...).
+    if "mark" in candidate and _unit_validator() is not None:
+        errors = list(_unit_validator().iter_errors(candidate)) or errors
+
+    # The most specific causes are the deepest leaf errors.
+    leaves = [leaf for error in errors for leaf in _leaf_errors(error)]
     max_depth = max(len(leaf.absolute_path) for leaf in leaves)
     deepest = [leaf for leaf in leaves if len(leaf.absolute_path) == max_depth]
     path = "/".join(str(p) for p in deepest[0].absolute_path) or "(root)"
