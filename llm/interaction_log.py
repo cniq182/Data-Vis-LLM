@@ -42,6 +42,7 @@ def log_result(
         "total_latency_s": round(result.total_latency_s, 3),
         "total_tokens": sum(a.total_tokens or 0 for a in result.attempts),
         "error": result.error,
+        "error_detail": result.error_detail,
         "clarification": result.clarification,
         "final_spec": result.spec,
         "attempts": [asdict(a) for a in result.attempts],

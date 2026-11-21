@@ -30,7 +30,12 @@ _TIME_UNIT_FIXES = (
 
 
 class SpecError(Exception):
-    """A spec that cannot be rendered. The message is meant for the LLM."""
+    """A spec that cannot be rendered. The message is meant for the LLM;
+    `detail` keeps the full, untruncated explanation for the log."""
+
+    def __init__(self, message: str, detail: str | None = None) -> None:
+        super().__init__(message)
+        self.detail = detail or message
 
 
 def parse_spec(text: str) -> Spec:
@@ -168,6 +173,10 @@ def check_schema(spec: Spec) -> None:
 
     # The most specific causes are the deepest leaf errors.
     leaves = [leaf for error in errors for leaf in _leaf_errors(error)]
+    full_detail = "\n".join(
+        f"{'/'.join(str(p) for p in leaf.absolute_path) or '(root)'}: {leaf.message}"
+        for leaf in leaves
+    )
     max_depth = max(len(leaf.absolute_path) for leaf in leaves)
     deepest = [leaf for leaf in leaves if len(leaf.absolute_path) == max_depth]
     path = "/".join(str(p) for p in deepest[0].absolute_path) or "(root)"
@@ -182,11 +191,17 @@ def check_schema(spec: Spec) -> None:
     if options:
         raise SpecError(
             f"Invalid value {deepest[0].instance!r} at {path}. "
-            f"Valid values: {', '.join(sorted(options))}."
+            f"Valid values: {', '.join(sorted(options))}.",
+            detail=full_detail,
         )
 
     messages = sorted({_short_message(leaf) for leaf in deepest})
-    raise SpecError(f"Invalid Vega-Lite at {path}: " + " | ".join(messages[:3]))
+    raise SpecError(
+        f"Invalid Vega-Lite at {path}: " + " | ".join(messages[:3]),
+        detail=full_detail,
+    )
+
+
 def validate(spec: Spec, columns: set[str]) -> Spec:
     """Full pipeline: sanitize, check fields, check schema. Returns clean spec."""
     clean = sanitize(spec)

@@ -32,6 +32,7 @@ class Attempt:
     error: str | None          # None means this attempt produced a valid spec
     latency_s: float
     total_tokens: int | None
+    error_detail: str | None = None   # full error for the log (never sent to the model)
 
 
 @dataclass(frozen=True)
@@ -40,6 +41,7 @@ class ChartResult:
     attempts: list[Attempt]
     error: str | None = None           # user-facing message when no valid spec
     clarification: str | None = None   # model says the data cannot answer the request
+    error_detail: str | None = None    # full technical error (e.g. network), for the log
 
     @property
     def ok(self) -> bool:
@@ -77,6 +79,7 @@ def ask(
             return ChartResult(
                 None, attempts,
                 f"The language model could not be reached ({type(exc).__name__}).",
+                error_detail=str(exc),
             )
 
         try:
@@ -86,7 +89,8 @@ def ask(
                 return ChartResult(None, attempts, clarification=parsed["clarification"])
             spec = validate(parsed, schema.column_names)
         except SpecError as exc:
-            attempts.append(Attempt(result.text, str(exc), result.latency_s, result.total_tokens))
+            attempts.append(Attempt(result.text, str(exc), result.latency_s, result.total_tokens, exc.detail))
+
             if feedback is not None and _canonical(result.text) == _canonical(feedback.previous_answer):
                 # Same invalid answer as last time: another retry will not help.
                 return ChartResult(

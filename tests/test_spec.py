@@ -80,3 +80,10 @@ def test_schema_error_points_to_the_cause_without_echoing_spec() -> None:
     assert "config/view" in message
     assert "width" in message
     assert len(message) < 500        # no longer echoes the whole spec
+
+def test_schema_error_keeps_full_detail_for_the_log() -> None:
+    with pytest.raises(SpecError) as exc_info:
+        check_schema({"mark": "bar", "config": {"view": {"width": 400}}})
+    error = exc_info.value
+    assert "config/view" in error.detail
+    assert len(error.detail) > len(str(error))   # the log gets more than the model
