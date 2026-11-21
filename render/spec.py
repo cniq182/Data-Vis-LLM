@@ -120,6 +120,33 @@ def _fix_misplaced_keys(spec: Spec) -> None:
     if isinstance(encoding, dict) and isinstance(encoding.get("title"), str):
         spec.setdefault("title", encoding.pop("title"))
 
+_ORDER_WORDS = {"asc": "ascending", "desc": "descending",
+                "ascending": "ascending", "descending": "descending"}
+
+
+def _fix_sort_field(item: Any) -> Any:
+    """Turn "-field" strings and "direction" keys into Vega-Lite's {"field", "order"} form."""
+    if isinstance(item, str):
+        order = "descending" if item.startswith("-") else "ascending"
+        return {"field": item.lstrip("-"), "order": order}
+    if isinstance(item, dict) and "direction" in item and "order" not in item:
+        fixed = {k: v for k, v in item.items() if k != "direction"}
+        fixed["order"] = _ORDER_WORDS.get(str(item["direction"]).lower(), "ascending")
+        return fixed
+    return item
+
+
+def _fix_window_sorts(spec: Spec) -> None:
+    """Window transforms need "sort": [{"field": ..., "order": ...}] (modifies spec in place)."""
+    transforms = spec.get("transform")
+    if not isinstance(transforms, list):
+        return
+    for step in transforms:
+        if isinstance(step, dict) and "window" in step and "sort" in step:
+            sort = step["sort"]
+            items = sort if isinstance(sort, list) else [sort]
+            step["sort"] = [_fix_sort_field(item) for item in items]
+
 def sanitize(spec: Spec) -> Spec:
     """Remove data sources and fix known LLM habits that break validation."""
     clean = _fix_time_units(_strip_data(spec))
@@ -136,6 +163,7 @@ def sanitize(spec: Spec) -> Spec:
         if not config:
             del clean["config"]
     _fix_misplaced_keys(clean)
+    _fix_window_sorts(clean)
 
     return clean
 

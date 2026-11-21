@@ -132,3 +132,20 @@ def test_unknown_top_level_property_gets_a_clear_message() -> None:
     message = str(exc_info.value)
     assert "foo" in message
     assert "concat" not in message       # no more misleading alternatives
+
+
+def test_window_sort_shorthand_is_fixed_and_valid() -> None:
+    # "Top 3 hours" pattern from pre-pilot 2.
+    for wrong_sort in (["-ride_count"], [{"field": "ride_count", "direction": "desc"}]):
+        spec = {
+            "mark": "bar",
+            "transform": [
+                {"aggregate": [{"op": "count", "as": "ride_count"}], "groupby": ["pickup_hour"]},
+                {"window": [{"op": "rank", "as": "rank"}], "sort": wrong_sort},
+                {"filter": "datum.rank <= 3"},
+            ],
+            "encoding": {"x": {"field": "pickup_hour", "type": "ordinal"},
+                         "y": {"field": "ride_count", "type": "quantitative"}},
+        }
+        clean = validate(spec, {"pickup_hour"})
+        assert clean["transform"][1]["sort"] == [{"field": "ride_count", "order": "descending"}]
