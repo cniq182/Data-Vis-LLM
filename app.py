@@ -36,10 +36,14 @@ df = st.session_state.df
 schema = st.session_state.schema
 
 with st.sidebar:
-    session_id = st.text_input("Session ID", value="demo")
+    session_id = st.text_input("Session ID (participant code)", value="").strip()
+    if st.button("New chart"):
+        # Start the next task from scratch: forget the current chart and conversation.
+        st.session_state.update(messages=[], current_spec=None,
+                                pending_clarification=None, pending_question=None)
+        st.rerun()
     with st.expander("Schema sent to the model"):
         st.json(schema.to_prompt_dict())
-
 # Show the conversation so far.
 for i, msg in enumerate(st.session_state.messages):
     with st.chat_message(msg["role"]):
@@ -47,7 +51,9 @@ for i, msg in enumerate(st.session_state.messages):
         if msg.get("spec"):
             st.vega_lite_chart(df, msg["spec"], key=f"chart_{i}")
             st.caption(msg["summary"])
-
+if not session_id:
+    st.warning("Enter a Session ID in the sidebar before asking questions.")
+    st.stop()
 question = st.chat_input("Ask a question about your data")
 if question:
     st.session_state.messages.append({"role": "user", "text": question})
@@ -55,12 +61,21 @@ if question:
         st.markdown(question)
 
     current = st.session_state.current_spec
+    pending = st.session_state.get("pending_clarification")
+    original = st.session_state.get("pending_question")
     with st.spinner("Generating chart..."):
         result = ask(
             schema, question, current,
-            previous_clarification=st.session_state.pending_clarification,
+            previous_clarification=pending,
+            previous_question=original,
         )
     log_result(question, result, session_id=session_id, had_current_spec=current is not None)
+
+    # Remember the original question while clarifications go back and forth.
+    if result.clarification:
+        st.session_state.pending_question = original if pending else question
+    else:
+        st.session_state.pending_question = None
     st.session_state.pending_clarification = result.clarification
     if result.ok:
         st.session_state.current_spec = result.spec

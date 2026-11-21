@@ -84,3 +84,18 @@ def test_stops_when_time_budget_would_be_exceeded() -> None:
     assert not result.ok
     assert len(calls) == 1               # a second attempt (1 s + ~1 s) would exceed 1.5 s
     assert "long wait" in result.error
+
+def test_original_question_is_sent_after_a_clarification() -> None:
+    seen: list[str] = []
+
+    def generate(schema, question, current_spec, feedback):
+        seen.append(question)
+        return LLMResult(text=GOOD, model="fake", latency_s=0.0, total_tokens=0)
+
+    ask(SCHEMA, "only credit card", generate=generate,
+        previous_question="which city gives more tip",
+        previous_clarification="Total or average tip?")
+    assert "which city gives more tip" in seen[0]
+    assert "Total or average tip?" in seen[0]
+    assert "only credit card" in seen[0]
+    
