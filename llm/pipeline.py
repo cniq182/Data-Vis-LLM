@@ -13,6 +13,7 @@ from llm.client import Feedback, LLMResult, generate_spec
 from render.spec import SpecError, parse_spec, validate
 
 MAX_ATTEMPTS = 3
+TIME_BUDGET_S = 60.0   # max total model time per question
 
 def _canonical(text: str) -> str:
     """Normalize an answer so that formatting differences don't count as changes."""
@@ -59,6 +60,7 @@ def ask(
     previous_clarification: str | None = None,
     generate: Generator = generate_spec,
     max_attempts: int = MAX_ATTEMPTS,
+    time_budget_s: float = TIME_BUDGET_S,
 ) -> ChartResult:
     """Generate a valid spec, feeding validation errors back to the model."""
     if previous_clarification:
@@ -72,6 +74,15 @@ def ask(
     feedback: Feedback | None = None
 
     for _ in range(max_attempts):
+        if attempts:
+            spent = sum(a.latency_s for a in attempts)
+            if spent + attempts[-1].latency_s > time_budget_s:
+                # Another attempt would likely exceed the budget: stop instead of making the user wait.
+                return ChartResult(
+                    None, attempts,
+                    f"Stopped after {len(attempts)} attempt(s) ({spent:.0f} s) to avoid a long wait. "
+                    "Try rephrasing the question.",
+                )
         try:
             result = generate(schema, question, current_spec, feedback)
         except openai.APIError as exc:

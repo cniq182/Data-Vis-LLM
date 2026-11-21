@@ -76,3 +76,11 @@ def test_stops_early_when_retry_repeats_the_same_spec() -> None:
     assert not result.ok
     assert len(calls) == 2                 # the third attempt is never made
     assert "repeated" in result.error
+
+
+def test_stops_when_time_budget_would_be_exceeded() -> None:
+    generate, calls = scripted("not json", "{broken", GOOD)   # each fake answer "takes" 1.0 s
+    result = ask(SCHEMA, "q", generate=generate, time_budget_s=1.5)
+    assert not result.ok
+    assert len(calls) == 1               # a second attempt (1 s + ~1 s) would exceed 1.5 s
+    assert "long wait" in result.error
