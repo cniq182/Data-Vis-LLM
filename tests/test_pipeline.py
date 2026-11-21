@@ -44,7 +44,7 @@ def test_recovers_after_unknown_field() -> None:
 
 
 def test_gives_up_after_max_attempts() -> None:
-    generate, _ = scripted("not json", "not json", "not json")
+    generate, _ = scripted("not json", "still not json", "{broken")   # three different bad answers
     result = ask(SCHEMA, "q", generate=generate, max_attempts=3)
     assert not result.ok
     assert len(result.attempts) == 3
@@ -67,3 +67,12 @@ def test_previous_clarification_is_sent_with_the_reply() -> None:
     ask(SCHEMA, "yes", generate=generate, previous_clarification="Bar chart per port instead?")
     assert "Bar chart per port instead?" in seen[0]
     assert "yes" in seen[0]
+
+def test_stops_early_when_retry_repeats_the_same_spec() -> None:
+    bad = json.dumps({"mark": "bar", "encoding": {"x": {"field": "Region", "type": "nominal"}}})
+    same_bad_reformatted = json.dumps(json.loads(bad), indent=2)   # same spec, different spacing
+    generate, calls = scripted(bad, same_bad_reformatted, GOOD)
+    result = ask(SCHEMA, "q", generate=generate)
+    assert not result.ok
+    assert len(calls) == 2                 # the third attempt is never made
+    assert "repeated" in result.error
