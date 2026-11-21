@@ -29,6 +29,7 @@ if st.session_state.get("file_id") != uploaded.file_id:
         schema=extract_schema(df),
         messages=[],
         current_spec=None,
+        pending_clarification=None,
     )
 
 df = st.session_state.df
@@ -55,9 +56,12 @@ if question:
 
     current = st.session_state.current_spec
     with st.spinner("Generating chart..."):
-        result = ask(schema, question, current)
+        result = ask(
+            schema, question, current,
+            previous_clarification=st.session_state.pending_clarification,
+        )
     log_result(question, result, session_id=session_id, had_current_spec=current is not None)
-
+    st.session_state.pending_clarification = result.clarification
     if result.ok:
         st.session_state.current_spec = result.spec
         reply = {

@@ -87,3 +87,41 @@ def test_schema_error_keeps_full_detail_for_the_log() -> None:
     error = exc_info.value
     assert "config/view" in error.detail
     assert len(error.detail) > len(str(error))   # the log gets more than the model
+
+TAXI_COLUMNS = {"pickup_borough", "tip", "total", "payment"}
+
+
+def test_filter_inside_encoding_is_moved_and_valid() -> None:
+    # Real LLM output from pre-pilot 2 (failed 3/3 before this fix).
+    spec = {"mark": "bar", "encoding": {
+        "x": {"field": "pickup_borough", "type": "nominal", "sort": "-y"},
+        "y": {"field": "tip", "type": "quantitative", "aggregate": "mean"},
+        "filter": {"field": "payment", "equal": "credit card"}},
+        "config": {"view": {"width": 500, "height": 300}}}
+    clean = validate(spec, TAXI_COLUMNS)
+    assert clean["transform"] == [{"filter": {"field": "payment", "equal": "credit card"}}]
+    assert "filter" not in clean["encoding"]
+
+
+def test_top_level_filter_list_is_moved() -> None:
+    spec = {"mark": "bar", "encoding": {"x": {"field": "pickup_borough", "type": "nominal"}},
+            "filter": [{"field": "payment", "equal": "credit card"}]}
+    clean = validate(spec, TAXI_COLUMNS)
+    assert clean["transform"] == [{"filter": {"field": "payment", "equal": "credit card"}}]
+
+
+def test_valid_and_notnull_filters_keep_text_values() -> None:
+    for wrong in ({"field": "pickup_borough", "valid": True},
+                  {"field": "pickup_borough", "notNull": True}):
+        spec = {"mark": "bar", "encoding": {"x": {"field": "pickup_borough", "type": "nominal"}},
+                "transform": [{"filter": wrong}]}
+        clean = validate(spec, TAXI_COLUMNS)
+        assert clean["transform"] == [{"filter": 'datum["pickup_borough"] != null'}]
+
+
+def test_title_inside_encoding_is_moved() -> None:
+    spec = {"mark": "bar", "encoding": {"x": {"field": "pickup_borough", "type": "nominal"},
+                                        "title": "Total Tips"}}
+    clean = validate(spec, TAXI_COLUMNS)
+    assert clean["title"] == "Total Tips"
+    assert "title" not in clean["encoding"]

@@ -64,6 +64,8 @@ def _fix_time_unit(value: str) -> str:
     return value
 
 
+
+
 def _fix_time_units(node: Any) -> Any:
     """Recursively replace singular time units anywhere in the spec."""
     if isinstance(node, dict):
@@ -80,6 +82,44 @@ def _fix_time_units(node: Any) -> Any:
         return [_fix_time_units(v) for v in node]
     return node
 
+def _fix_filter(predicate: Any) -> Any:
+    """Rewrite filter predicates the LLM often gets wrong."""
+    if isinstance(predicate, dict):
+        field = predicate.get("field")
+        if isinstance(field, str) and (predicate.get("valid") is True or predicate.get("notNull") is True):
+            # Vega-Lite's "valid" also drops non-numeric values, which empties text columns.
+            return f"datum[{json.dumps(field)}] != null"
+        if isinstance(predicate.get("expression"), str) and len(predicate) == 1:
+            return predicate["expression"]
+    return predicate
+
+
+def _fix_misplaced_keys(spec: Spec) -> None:
+    """Move filters and titles the LLM puts in the wrong place (modifies spec in place)."""
+    encoding = spec.get("encoding")
+
+    # Filters must live in "transform": [{"filter": ...}], not in encoding or at the top level.
+    moved: list[Any] = []
+    for container in (spec, encoding):
+        if isinstance(container, dict) and "filter" in container:
+            value = container.pop("filter")
+            moved.extend(value if isinstance(value, list) else [value])
+    if moved:
+        transforms = spec.get("transform")
+        if not isinstance(transforms, list):
+            transforms = []
+        spec["transform"] = transforms + [{"filter": f} for f in moved]
+
+    # Fix the predicates of every filter transform.
+    if isinstance(spec.get("transform"), list):
+        for step in spec["transform"]:
+            if isinstance(step, dict) and "filter" in step:
+                step["filter"] = _fix_filter(step["filter"])
+
+    # The chart title belongs at the top level, not inside encoding.
+    if isinstance(encoding, dict) and isinstance(encoding.get("title"), str):
+        spec.setdefault("title", encoding.pop("title"))
+
 def sanitize(spec: Spec) -> Spec:
     """Remove data sources and fix known LLM habits that break validation."""
     clean = _fix_time_units(_strip_data(spec))
@@ -95,6 +135,7 @@ def sanitize(spec: Spec) -> Spec:
             del config["view"]
         if not config:
             del clean["config"]
+    _fix_misplaced_keys(clean)
 
     return clean
 
