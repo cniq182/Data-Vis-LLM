@@ -1,0 +1,19 @@
+# .streamlit/config.toml
+# Native base theme. The CSS in app.py refines it (font, radii, shadows, hover).
+# Keep both palettes in sync if you change colours.
+
+[theme]
+base = "light"
+primaryColor = "#7A9E7E"              # sage green: buttons, focus rings, links
+backgroundColor = "#FAF8F5"           # warm cream: main background
+secondaryBackgroundColor = "#F2EEE7"  # sand: sidebar, inputs, code blocks
+textColor = "#2D2D2A"                 # warm charcoal
+font = "sans serif"
+
+[client]
+# Hides the developer options from the top-right menu (no "Deploy", no "Rerun" clutter).
+toolbarMode = "minimal"
+showErrorDetails = false
+
+[browser]
+gatherUsageStats = false

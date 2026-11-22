@@ -37,4 +37,4 @@ print("\nMissing values per column:")
 print(df.isna().sum().to_string())
 
 import seaborn as sns
-sns.load_dataset("taxis").to_csv("Evaluation/taxis.csv", index=False)
+sns.load_dataset("flights").to_csv("Evaluation/flights.csv", index=False)
