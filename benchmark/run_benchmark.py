@@ -219,9 +219,13 @@ def main() -> None:
                         help="model names on CampusAI (default: cai)")
     parser.add_argument("--cases", nargs="*", default=None,
                         help="only run these case ids (default: all)")
+    parser.add_argument("--dataset", default=None,
+                        help="only run the cases of this dataset, e.g. shop.csv")
     args = parser.parse_args()
 
     cases = load_cases(args.cases)
+    if args.dataset:
+        cases = [c for c in cases if c["dataset"] == args.dataset]
     RESULTS_DIR.mkdir(parents=True, exist_ok=True)
     stamp = datetime.now().strftime("%Y%m%d-%H%M")
     print(f"{len(cases)} cases x {len(args.models)} model(s), prompt {PROMPT_VERSION}, "
