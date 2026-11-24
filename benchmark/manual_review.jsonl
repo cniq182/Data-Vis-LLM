@@ -1,0 +1,5 @@
+{"model": "cai", "case_id": "tmp-03", "manual_pass": false, "failure_type": "silent error", "note": "timeUnit 'weekday' means week-of-year + day, not day of week: ~365 thin bars instead of 7. Valid Vega-Lite, so validation and self-healing cannot catch it (checked visually in the app)."}
+{"model": "cai-instant", "case_id": "tmp-03", "manual_pass": false, "failure_type": "silent error", "note": "same 'weekday' error as cai"}
+{"model": "cai-mini", "case_id": "tmp-03", "manual_pass": false, "failure_type": "silent error", "note": "same 'weekday' error; first attempt used invalid 'dayofweek'"}
+{"model": "cai-instant", "case_id": "tmp-02", "manual_pass": true, "failure_type": "grader false negative", "note": "line by yearmonth, colour by year: correct chart, the colour is redundant"}
+{"model": "cai-mini", "case_id": "clr-01", "manual_pass": false, "failure_type": "silent substitution", "note": "'average profit' answered with mean(total) instead of asking for clarification"}
